@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intelligent Document Summarizer</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3250;
+      --accent:    #6c63ff;
+      --accent2:   #a78bfa;
+      --green:     #34d399;
+      --yellow:    #fbbf24;
+      --red:       #f87171;
+      --text:      #e2e8f0;
+      --muted:     #8892b0;
+      --radius:    14px;
+      --shadow:    0 8px 32px rgba(0,0,0,0.45);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #6c63ff22, #a78bfa22);
+      border: 1px solid var(--accent);
+      color: var(--accent2);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 100px;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: clamp(24px, 5vw, 42px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #e2e8f0, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 860px; margin: 0 auto; }
+
+    /* ── Tab Bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--surface2); }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(108,99,255,0.4);
+    }
+    .tab-icon { font-size: 16px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Tab Panels ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Upload Zone ── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(108,99,255,0.06);
+    }
+    .upload-zone.has-file {
+      border-color: var(--green);
+      background: rgba(52,211,153,0.05);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 10px; display: block; }
+    .upload-text { color: var(--muted); font-size: 14px; }
+    .upload-text strong { color: var(--accent2); }
+    .file-name {
+      display: none;
+      margin-top: 10px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .file-name.show { display: block; }
+
+    /* ── Form Row ── */
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .form-group { flex: 1; min-width: 180px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    select, input[type="text"], textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border .2s;
+      appearance: none;
+    }
+    select:focus, input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+    /* ── Button ── */
+    .btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .5px;
+      transition: all .2s;
+      box-shadow: 0 4px 20px rgba(108,99,255,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(108,99,255,0.5); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result ── */
+    .result-box {
+      display: none;
+      margin-top: 24px;
+    }
+    .result-box.show { display: block; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-header .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .result-header h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+
+    /* ── Stats Row ── */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 1;
+      min-width: 90px;
+      text-align: center;
+    }
+    .stat-chip strong {
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .stat-chip .stat-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+
+    /* ── Key Points ── */
+    .key-points-section { margin-bottom: 20px; }
+    .key-points-title {
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--muted); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .key-points-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .key-points-list li {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Reading Level Badge ── */
+    .level-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+    .level-easy     { background: rgba(52,211,153,.2);  color: var(--green); }
+    .level-standard { background: rgba(251,191,36,.2);  color: var(--yellow); }
+    .level-hard     { background: rgba(248,113,113,.2); color: var(--red); }
+
+    /* ── Engine badge ── */
+    .engine-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 5px 12px; border-radius: 100px; margin-bottom: 14px;
+    }
+    .engine-ensemble {
+      background: rgba(108,99,255,0.12);
+      border: 1px solid rgba(108,99,255,0.35);
+      color: var(--accent2);
+    }
+    .engine-groq {
+      background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(234,88,12,0.10));
+      border: 1px solid rgba(249,115,22,0.45);
+      color: #f97316;
+    }
+
+    /* ── Summary Text ── */
+    .summary-text {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 18px 20px;
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-line;
+    }
+
+    /* ── Keywords ── */
+    .keywords-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .keyword-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all .2s;
+    }
+    .keyword-chip:hover { border-color: var(--accent); color: var(--accent2); }
+    .keyword-score {
+      background: rgba(108,99,255,0.2);
+      color: var(--accent2);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 100px;
+    }
+
+    /* ── Q&A Result ── */
+    .qa-question-block {
+      background: rgba(108,99,255,0.08);
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+    .qa-question-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 6px;
+    }
+    .qa-question-text {
+      font-size: 14px; color: var(--text); font-style: italic;
+    }
+    .qa-answer-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .qa-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .qa-answer {
+      font-size: 15px; font-weight: 500;
+      color: var(--text); line-height: 1.75;
+    }
+    .confidence-bar-wrap { margin-top: 16px; }
+    .confidence-bar-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: var(--muted); margin-bottom: 6px;
+    }
+    .confidence-pct {
+      font-size: 14px; font-weight: 700;
+    }
+    .conf-high  { color: var(--green); }
+    .conf-mid   { color: #f59e0b; }
+    .conf-low   { color: var(--red); }
+    .confidence-bar {
+      height: 8px; background: var(--border);
+      border-radius: 100px; overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%; border-radius: 100px;
+      transition: width .9s ease;
+    }
+    .conf-fill-high { background: linear-gradient(90deg, #34d399, #10b981); }
+    .conf-fill-mid  { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    .conf-fill-low  { background: linear-gradient(90deg, #f87171, #ef4444); }
+    /* Evidence accordion */
+    .evidence-toggle {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      cursor: pointer; user-select: none;
+      margin-top: 14px; padding: 10px 14px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; transition: border-color 0.2s;
+    }
+    .evidence-toggle:hover { border-color: var(--accent2); color: var(--accent2); }
+    .evidence-arrow { margin-left: auto; transition: transform 0.25s; }
+    .evidence-toggle.open .evidence-arrow { transform: rotate(180deg); }
+    .evidence-body {
+      display: none; border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 8px 8px; padding: 12px 14px; margin-top: -2px;
+    }
+    .evidence-body.open { display: block; }
+    .evidence-sentence {
+      font-size: 12.5px; color: var(--muted); line-height: 1.7;
+      padding: 6px 0; border-bottom: 1px solid var(--border);
+    }
+    .evidence-sentence:last-child { border-bottom: none; padding-bottom: 0; }
+    .evidence-sentence::before {
+      content: '›'; color: var(--accent2);
+      font-weight: 700; margin-right: 8px;
+    }
+    /* Not-found card */
+    .qa-not-found {
+      display: none; text-align: center; padding: 32px 20px;
+      background: rgba(248,113,113,0.06);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 10px; margin-top: 16px;
+    }
+    .qa-not-found.show { display: block; }
+    .qa-not-found-icon { font-size: 32px; margin-bottom: 10px; }
+    .qa-not-found-msg {
+      font-size: 14px; color: var(--muted); line-height: 1.6;
+    }
+    .context-snippet {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── Error ── */
+    .error-box {
+      display: none;
+      background: rgba(248,113,113,0.08);
+      border: 1px solid rgba(248,113,113,0.35);
+      color: var(--red);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .error-box.show { display: block; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 48px;
+    }
+    .footer span { color: var(--accent2); font-weight: 600; }
+
+    /* ── Health badge ── */
+    .health-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 540px) {
+      .tab-btn .tab-label { display: none; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="badge">Groq LLaMA 3.3 · LSA · LexRank · Luhn · TextRank</div>
+    <h1>Intelligent Document Summarizer</h1>
+    <p>Upload any PDF, DOCX, or TXT file. Get powerful summaries, key bullet points, keywords, and smart Q&amp;A — fully offline.</p>
+    <p style="margin-top:10px; font-size:13px;">
+      <span class="health-dot"></span>
+      <span id="health-status" style="color:var(--muted);">Checking API...</span>
+    </p>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('summarize', this)">
+      <span class="tab-icon">📄</span>
+      <span class="tab-label">Summarize</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('keywords', this)">
+      <span class="tab-icon">🏷️</span>
+      <span class="tab-label">Keywords</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('qa', this)">
+      <span class="tab-icon">💬</span>
+      <span class="tab-label">Q &amp; A</span>
+    </button>
+  </div>
+
+  <!-- ── SUMMARIZE PANEL ── -->
+  <div class="tab-panel active card" id="panel-summarize">
+    <div class="upload-zone" id="drop-summarize">
+      <input type="file" id="file-summarize" accept=".pdf,.docx,.txt" onchange="onFileSelect(this,'summarize')" />
+      <span class="upload-icon">📂</span>
+      <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop</p>
+      <p class="upload-text" style="margin-top:4px;">PDF, DOCX, TXT — max 10MB</p>
+      <p class="file-name" id="fname-summarize"></p>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Summary Length</label>
+        <select id="summary-length">
+          <option value="short">Short (3 sentences)</option>
+          <option value="medium" selected>Medium (6 sentences)</option>
+          <option value="detailed">Detailed (12 sentences)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-summarize" onclick="runSummarize()">
+      <div class="spinner"></div>
+      <span class="btn-text">✨ Generate Summary</span>
+    </button>
+
+    <div class="error-box" id="err-summarize"></div>
+
+    <div class="result-box" id="result-summarize">
+      <div class="result-header">
+        <div class="dot"></div>
+        <h3>Summary Result</h3>
+      </div>
+      <!-- Analytics stats -->
+      <div class="stats-row" id="stats-summarize"></div>
+
+      <!-- Key Points -->
+      <div class="key-points-section" id="key-points-section" style="display:none">
+        <div class="key-points-title">⚡ Key Points</div>
+        <ul class="key-points-list" id="key-points-list"></ul>
+      </div>
+
+      <!-- Summary Text -->
+      <div class="key-points-title" style="margin-bottom:10px;">📝 Summary</div>
+      <div class="summary-text" id="summary-output"></div>
+    </div>
+  </div>
+
+  <!-- ── KEYWORDS PANEL ── -->
+  <div class="tab-panel card" id="panel-keywords">
+    <div class="upload-zone" id="drop-keywords">
+      <input type="file" id="file-keywords" accept=".pdf,.docx,.txt" onchange="onFileSelect(this,'keywords')" />
+      <span class="upload-icon">🔍</span>
+      <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop</p>
+      <p class="upload-text" style="margin-top:4px;">PDF, DOCX, TXT — max 10MB</p>
+      <p class="file-name" id="fname-keywords"></p>
+    </div>
+
+    <button class="btn" id="btn-keywords" onclick="runKeywords()">
+      <div class="spinner"></div>
+      <span class="btn-text">🏷️ Extract Keywords</span>
+    </button>
+
+    <div class="error-box" id="err-keywords"></div>
+
+    <div class="result-box" id="result-keywords">
+      <div class="result-header">
+        <div class="dot"></div>
+        <h3>Extracted Keywords</h3>
+      </div>
+      <div class="keywords-grid" id="keywords-output"></div>
+    </div>
+  </div>
+
+  <!-- ── Q&A PANEL ── -->
+  <div class="tab-panel card" id="panel-qa">
+    <div class="upload-zone" id="drop-qa">
+      <input type="file" id="file-qa" accept=".pdf,.docx,.txt" onchange="onFileSelect(this,'qa')" />
+      <span class="upload-icon">💬</span>
+      <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop</p>
+      <p class="upload-text" style="margin-top:4px;">PDF, DOCX, TXT — max 10MB</p>
+      <p class="file-name" id="fname-qa"></p>
+    </div>
+
+    <div class="form-group" style="margin-bottom:18px;">
+      <label>Your Question</label>
+      <textarea id="qa-question" placeholder="e.g. What is the main conclusion of this document?"></textarea>
+    </div>
+
+    <button class="btn" id="btn-qa" onclick="runQA()">
+      <div class="spinner"></div>
+      <span class="btn-text">💡 Find Answer</span>
+    </button>
+
+    <div class="error-box" id="err-qa"></div>
+
+    <!-- Not-found state -->
+    <div class="qa-not-found" id="qa-not-found">
+      <div class="qa-not-found-icon">🔍</div>
+      <div class="qa-not-found-msg" id="qa-not-found-msg">
+        The document doesn't contain enough relevant information to answer this question.
+        Try rephrasing or asking about a topic covered in the document.
+      </div>
+    </div>
+
+    <div class="result-box" id="result-qa">
+      <div class="result-header">
+        <div class="dot"></div>
+        <h3>Answer</h3>
+      </div>
+
+      <!-- Question echo -->
+      <div class="qa-question-block">
+        <div class="qa-question-label">🙋 Your Question</div>
+        <div class="qa-question-text" id="qa-question-echo"></div>
+      </div>
+
+      <!-- Answer block -->
+      <div class="qa-answer-block">
+        <div class="qa-label">✅ Answer</div>
+        <div class="qa-answer" id="qa-answer-text"></div>
+        <div class="confidence-bar-wrap">
+          <div class="confidence-bar-label">
+            <span>Confidence Score</span>
+            <span class="confidence-pct" id="qa-confidence-val"></span>
+          </div>
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="qa-confidence-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Source Evidence accordion -->
+      <div class="evidence-toggle" id="evidence-toggle" onclick="toggleEvidence()">
+        <span>📄</span>
+        <span>Source Evidence</span>
+        <span class="qa-label" style="margin:0;" id="evidence-count"></span>
+        <span class="evidence-arrow">▼</span>
+      </div>
+      <div class="evidence-body" id="evidence-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Built with <span>FastAPI</span> + <span>sumy</span> + <span>YAKE</span> + <span>scikit-learn</span>
+</div>
+
+<script>
+  const API = 'http://localhost:8000/api/v1';
+
+  // ── Health check ──
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const d = await r.json();
+      document.getElementById('health-status').textContent =
+        d.status === 'ok' ? `${d.app_name} v${d.version} — Online` : 'API offline';
+      document.getElementById('health-status').style.color =
+        d.status === 'ok' ? 'var(--green)' : 'var(--red)';
+    } catch {
+      document.getElementById('health-status').textContent = 'Cannot reach API';
+      document.getElementById('health-status').style.color = 'var(--red)';
+    }
+  }
+  checkHealth();
+
+  // ── Tab switching ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`panel-${name}`).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── Drag & Drop setup ──
+  ['summarize','keywords','qa'].forEach(id => {
+    const zone = document.getElementById(`drop-${id}`);
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const input = document.getElementById(`file-${id}`);
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        onFileSelect(input, id);
+      }
+    });
+  });
+
+  // ── File selected ──
+  function onFileSelect(input, id) {
+    const zone = document.getElementById(`drop-${id}`);
+    const fname = document.getElementById(`fname-${id}`);
+    if (input.files[0]) {
+      fname.textContent = `✅  ${input.files[0].name}`;
+      fname.classList.add('show');
+      zone.classList.add('has-file');
+    }
+  }
+
+  // ── Loading helpers ──
+  function setLoading(btn, on) {
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(`err-${id}`);
+    el.textContent = `⚠️  ${msg}`;
+    el.classList.add('show');
+  }
+
+  function clearError(id) {
+    const el = document.getElementById(`err-${id}`);
+    el.textContent = '';
+    el.classList.remove('show');
+  }
+
+  // ── SUMMARIZE ──
+  async function runSummarize() {
+    clearError('summarize');
+    document.getElementById('result-summarize').classList.remove('show');
+
+    const file = document.getElementById('file-summarize').files[0];
+    if (!file) { showError('summarize', 'Please upload a file first.'); return; }
+
+    const btn = document.getElementById('btn-summarize');
+    setLoading(btn, true);
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('summary_length', document.getElementById('summary-length').value);
+
+      const r = await fetch(`${API}/summarize`, { method: 'POST', body: form });
+      const d = await r.json();
+
+      if (!r.ok) { showError('summarize', d.detail || 'Request failed.'); return; }
+
+      // Engine badge
+      const existingBadge = document.getElementById('engine-badge');
+      if (existingBadge) existingBadge.remove();
+      const badge = document.createElement('div');
+      badge.id = 'engine-badge';
+      const engineKey = d.engine === 'groq' ? 'groq' : 'ensemble';
+      badge.className = `engine-badge engine-${engineKey}`;
+      badge.innerHTML = engineKey === 'groq'
+        ? `<span>⚡</span> Summarized by LLaMA 3.3 70B via Groq`
+        : `<span>🔧</span> Summarized by LSA · LexRank · Luhn · TextRank Ensemble`;
+      document.getElementById('result-summarize').querySelector('.result-header').after(badge);
+
+      // Reading level badge class
+      const levelClass = ['Very Easy','Easy'].includes(d.reading_level)
+        ? 'level-easy'
+        : ['Standard'].includes(d.reading_level) ? 'level-standard' : 'level-hard';
+
+      // Stat chips
+      document.getElementById('stats-summarize').innerHTML = `
+        <div class="stat-chip">
+          <span class="stat-icon">📖</span>
+          <strong>${d.original_word_count.toLocaleString()}</strong>Total Words
+        </div>
+        <div class="stat-chip">
+          <span class="stat-icon">✂️</span>
+          <strong>${d.summary_word_count.toLocaleString()}</strong>Summary Words
+        </div>
+        <div class="stat-chip">
+          <span class="stat-icon">📉</span>
+          <strong>${(d.compression_ratio * 100).toFixed(1)}%</strong>Of Original
+        </div>
+        <div class="stat-chip">
+          <span class="stat-icon">🕒</span>
+          <strong>${d.reading_time_minutes} min</strong>Reading Time
+        </div>
+        <div class="stat-chip">
+          <span class="stat-icon">📊</span>
+          <strong><span class="level-badge ${levelClass}">${d.reading_level}</span></strong>Reading Level
+        </div>
+        <div class="stat-chip">
+          <span class="stat-icon">📑</span>
+          <strong>${d.sentence_count}</strong>Sentences
+        </div>
+      `;
+
+      // Key Points
+      const kpSection = document.getElementById('key-points-section');
+      const kpList    = document.getElementById('key-points-list');
+      if (d.key_points && d.key_points.length > 0) {
+        kpList.innerHTML = d.key_points.map(p => `<li>${p}</li>`).join('');
+        kpSection.style.display = 'block';
+      } else {
+        kpSection.style.display = 'none';
+      }
+
+      // Summary
+      document.getElementById('summary-output').textContent = d.summary;
+      document.getElementById('result-summarize').classList.add('show');
+
+    } catch (e) {
+      showError('summarize', 'Could not connect to API. Is the server running?');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // ── KEYWORDS ──
+  async function runKeywords() {
+    clearError('keywords');
+    document.getElementById('result-keywords').classList.remove('show');
+
+    const file = document.getElementById('file-keywords').files[0];
+    if (!file) { showError('keywords', 'Please upload a file first.'); return; }
+
+    const btn = document.getElementById('btn-keywords');
+    setLoading(btn, true);
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const r = await fetch(`${API}/keywords`, { method: 'POST', body: form });
+      const d = await r.json();
+
+      if (!r.ok) { showError('keywords', d.detail || 'Request failed.'); return; }
+
+      const grid = document.getElementById('keywords-output');
+      grid.innerHTML = d.keyword_scores.map(k => `
+        <div class="keyword-chip">
+          ${k.keyword}
+          <span class="keyword-score">${(k.score * 100).toFixed(0)}%</span>
+        </div>
+      `).join('');
+
+      document.getElementById('result-keywords').classList.add('show');
+    } catch (e) {
+      showError('keywords', 'Could not connect to API. Is the server running?');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // ── Q&A ──
+  function toggleEvidence() {
+    const toggle = document.getElementById('evidence-toggle');
+    const body   = document.getElementById('evidence-body');
+    toggle.classList.toggle('open');
+    body.classList.toggle('open');
+  }
+
+  async function runQA() {
+    clearError('qa');
+    document.getElementById('result-qa').classList.remove('show');
+    document.getElementById('qa-not-found').classList.remove('show');
+
+    const file     = document.getElementById('file-qa').files[0];
+    const question = document.getElementById('qa-question').value.trim();
+
+    if (!file)             { showError('qa', 'Please upload a file first.'); return; }
+    if (!question)         { showError('qa', 'Please enter a question.'); return; }
+    if (question.length < 5) { showError('qa', 'Question is too short (min 5 characters).'); return; }
+
+    const btn = document.getElementById('btn-qa');
+    setLoading(btn, true);
+
+    // Reset evidence accordion
+    document.getElementById('evidence-toggle').classList.remove('open');
+    document.getElementById('evidence-body').classList.remove('open');
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('question', question);
+
+      const r = await fetch(`${API}/qa`, { method: 'POST', body: form });
+      const d = await r.json();
+
+      // Server said document has no relevant content
+      if (r.status === 404) {
+        document.getElementById('qa-not-found-msg').textContent =
+          d.detail || 'The document does not contain enough information to answer this question.';
+        document.getElementById('qa-not-found').classList.add('show');
+        return;
+      }
+
+      if (!r.ok) { showError('qa', d.detail || 'Request failed.'); return; }
+
+      // ── Echo question ──
+      document.getElementById('qa-question-echo').textContent = question;
+
+      // ── Answer text ──
+      document.getElementById('qa-answer-text').textContent = d.answer;
+
+      // ── Confidence bar + color coding ──
+      const pct = Math.round(d.confidence * 100);
+      const confEl  = document.getElementById('qa-confidence-val');
+      const barEl   = document.getElementById('qa-confidence-bar');
+
+      confEl.textContent = `${pct}%`;
+      confEl.className = 'confidence-pct ' + (pct >= 80 ? 'conf-high' : pct >= 60 ? 'conf-mid' : 'conf-low');
+      barEl.className   = 'confidence-fill ' + (pct >= 80 ? 'conf-fill-high' : pct >= 60 ? 'conf-fill-mid' : 'conf-fill-low');
+      barEl.style.width = '0%';
+      setTimeout(() => { barEl.style.width = `${pct}%`; }, 120);
+
+      // ── Source evidence ──
+      const srcs = d.source_sentences || [];
+      document.getElementById('evidence-count').textContent = srcs.length ? `${srcs.length} sentences` : '';
+      document.getElementById('evidence-body').innerHTML = srcs
+        .map(s => `<div class="evidence-sentence">${s}</div>`)
+        .join('');
+
+      document.getElementById('result-qa').classList.add('show');
+
+    } catch (e) {
+      showError('qa', 'Could not connect to API. Is the server running?');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+</script>
+</body>
+</html>

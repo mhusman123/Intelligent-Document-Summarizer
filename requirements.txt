@@ -1,0 +1,33 @@
+# ──────────────────────────────────────────────
+# FastAPI Core
+# ──────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# ──────────────────────────────────────────────
+# NLP — Lightweight (no large model downloads)
+# ──────────────────────────────────────────────
+sumy                  # Extractive summarization (LSA algorithm)
+yake                  # Keyword extraction (statistical, offline)
+scikit-learn          # TF-IDF cosine similarity for QA
+nltk                  # Tokenization for sumy
+
+# ──────────────────────────────────────────────
+# Document Parsing
+# ──────────────────────────────────────────────
+pdfplumber==0.11.4
+python-docx==1.1.2
+
+# ──────────────────────────────────────────────
+# Async & Utilities
+# ──────────────────────────────────────────────
+aiofiles==24.1.0
+httpx==0.28.1
+
+# ──────────────────────────────────────────────
+# AI APIs
+# ──────────────────────────────────────────────
+groq                    # LLaMA 3.3 70B via Groq (set GROQ_API_KEY in .env to enable)
