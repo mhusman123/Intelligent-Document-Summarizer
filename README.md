@@ -1,13 +1,3 @@
----
-title: Intelligent Document Summarizer
-emoji: 📄
-colorFrom: blue
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # Intelligent Document Summarizer API
 
 > An AI-powered REST API built with **FastAPI** that accepts PDF, DOCX, and TXT documents and returns summaries, extracted keywords, document analytics, and natural language question answering — all through clean, versioned HTTP endpoints.
